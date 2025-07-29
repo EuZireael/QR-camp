@@ -9,9 +9,10 @@
     :root {
       --bg: #121212;
       --text: #ffffff;
-      --card: #1f1f1f;
+      --card: #1e1e1e;
       --accent: #00c853;
       --danger: #ff5252;
+      --shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
     }
 
     body {
@@ -27,55 +28,65 @@
     }
 
     h2 {
-      margin-bottom: 10px;
+      margin-bottom: 16px;
     }
 
     #reader {
       width: 100%;
-      max-width: 400px;
-      height: 300px;
-      margin-bottom: 20px;
-      background: #222;
+      max-width: 360px;
+      aspect-ratio: 1/1;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      border: 2px solid var(--accent);
     }
 
     #child-card {
       background: var(--card);
-      border-radius: 12px;
-      padding: 20px;
+      border-radius: 20px;
+      padding: 24px;
       margin-top: 30px;
       width: 100%;
       max-width: 400px;
-      box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+      box-shadow: var(--shadow);
       display: none;
       animation: fadeInUp 0.4s ease;
     }
 
     .field {
-      margin: 10px 0;
+      margin: 14px 0;
+      font-size: 17px;
+      display: flex;
+      justify-content: space-between;
     }
 
     .field strong {
-      display: inline-block;
-      width: 90px;
+      opacity: 0.7;
+    }
+
+    .controls {
+      margin-top: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
     }
 
     button {
-      margin: 10px 10px 0 0;
-      padding: 10px 16px;
+      margin: 6px;
+      padding: 10px 18px;
       font-size: 18px;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       background: var(--accent);
       color: white;
       cursor: pointer;
       transition: all 0.2s ease;
       transform: scale(1);
-      user-select: none;
     }
 
     button:active {
       transform: scale(0.95);
-      box-shadow: 0 0 8px var(--accent);
+      box-shadow: 0 0 10px var(--accent);
     }
 
     .btn-red {
@@ -83,7 +94,20 @@
     }
 
     .btn-red:active {
-      box-shadow: 0 0 8px var(--danger);
+      box-shadow: 0 0 10px var(--danger);
+    }
+
+    input[type="number"] {
+      width: 100px;
+      font-size: 16px;
+      padding: 6px;
+      border-radius: 10px;
+      border: none;
+      margin: 6px;
+      display: none;
+      background: #2a2a2a;
+      color: var(--text);
+      text-align: center;
     }
 
     @keyframes fadeInUp {
@@ -95,22 +119,6 @@
         opacity: 1;
         transform: translateY(0);
       }
-    }
-
-    input[type="number"] {
-      width: 80px;
-      font-size: 16px;
-      padding: 4px;
-      border-radius: 6px;
-      border: none;
-      margin-left: 10px;
-      display: none;
-    }
-
-    .controls {
-      margin-top: 10px;
-      display: flex;
-      align-items: center;
     }
   </style>
 </head>
@@ -128,16 +136,16 @@
       <button id="btn-minus" class="btn-red">−</button>
       <input type="number" id="amount" placeholder="Баллы" />
       <button id="btn-apply" style="display:none;">=</button>
-      <button id="btn-cancel" style="display:none; margin-left:8px;">Отмена</button>
+      <button id="btn-cancel" style="display:none;">×</button>
     </div>
 
-    <button style="margin-top:20px" onclick="startScanner()">Сканировать снова</button>
+    <button style="margin-top: 20px;" onclick="startScanner()">Сканировать снова</button>
   </div>
 
   <script>
     const qr = new Html5Qrcode("reader");
     let currentId = "";
-    const sheetUrl = "https://script.google.com/macros/s/AKfycbxLNdtyoLOtF0MXn1yE5det2cr2kYcRY9q2SzzZcW5BmPiTqaQ1FddR2Wy_uNLmXXuw8w/exec"; // Заменить на свой
+    const sheetUrl = "https://script.google.com/macros/s/AKfycbxLNdtyoLOtF0MXn1yE5det2cr2kYcRY9q2SzzZcW5BmPiTqaQ1FddR2Wy_uNLmXXuw8w/exec"; // Замените на свой
 
     function onScanSuccess(decodedText) {
       qr.stop().catch(() => {});
@@ -160,17 +168,11 @@
 
         qr.start(
           { deviceId: { exact: cameraId } },
-          { fps: 10, qrbox: 250, rememberLastUsedCamera: true },
+          { fps: 10, qrbox: { width: 250, height: 250 }, rememberLastUsedCamera: true },
           onScanSuccess
-        ).then(() => {
-          console.log("Сканер запущен");
-        }).catch(err => {
-          alert("Не удалось запустить сканер: " + err);
-          console.error(err);
+        ).catch(err => {
+          alert("Ошибка запуска камеры: " + err);
         });
-      }).catch(err => {
-        alert("Ошибка при получении списка камер: " + err);
-        console.error(err);
       });
     }
 
@@ -191,34 +193,31 @@
           hideInputControls();
         })
         .catch(err => {
-          alert("Ошибка загрузки данных: " + err);
+          alert("Ошибка получения данных: " + err);
         });
     }
 
     function showInputControls(sign) {
       const input = document.getElementById("amount");
-      const applyBtn = document.getElementById("btn-apply");
-      const cancelBtn = document.getElementById("btn-cancel");
+      const apply = document.getElementById("btn-apply");
+      const cancel = document.getElementById("btn-cancel");
       input.style.display = "inline-block";
+      apply.style.display = "inline-block";
+      cancel.style.display = "inline-block";
       input.value = "";
       input.focus();
-      applyBtn.style.display = "inline-block";
-      cancelBtn.style.display = "inline-block";
 
-      applyBtn.onclick = () => {
-        const amount = parseInt(input.value);
-        if (isNaN(amount) || amount <= 0) {
+      apply.onclick = () => {
+        const value = parseInt(input.value);
+        if (isNaN(value) || value <= 0) {
           alert("Введите корректное число баллов");
-          input.focus();
           return;
         }
-        updateBalance(amount * sign);
+        updateBalance(value * sign);
         hideInputControls();
       };
 
-      cancelBtn.onclick = () => {
-        hideInputControls();
-      };
+      cancel.onclick = hideInputControls;
     }
 
     function hideInputControls() {
@@ -231,16 +230,15 @@
       fetch(`${sheetUrl}?id=${currentId}&action=update&delta=${delta}`)
         .then(res => res.text())
         .then(() => {
-          const balanceEl = document.getElementById("balance");
-          const current = parseInt(balanceEl.textContent);
-          balanceEl.textContent = current + delta;
+          const balance = document.getElementById("balance");
+          balance.textContent = parseInt(balance.textContent) + delta;
         });
     }
 
     document.getElementById("btn-plus").addEventListener("click", () => showInputControls(1));
     document.getElementById("btn-minus").addEventListener("click", () => showInputControls(-1));
 
-    // Автозапуск сканера
+    // Запуск сканера при загрузке
     startScanner();
   </script>
 </body>
