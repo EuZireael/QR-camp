@@ -23,6 +23,7 @@
       flex-direction: column;
       align-items: center;
       padding: 20px;
+      min-height: 100vh;
     }
 
     h2 {
@@ -32,7 +33,9 @@
     #reader {
       width: 100%;
       max-width: 400px;
+      height: 300px; /* важно для отображения камеры */
       margin-bottom: 20px;
+      background: #222;
     }
 
     #child-card {
@@ -67,6 +70,7 @@
       cursor: pointer;
       transition: all 0.2s ease;
       transform: scale(1);
+      user-select: none;
     }
 
     button:active {
@@ -99,39 +103,32 @@
       padding: 4px;
       border-radius: 6px;
       border: none;
-      margin-right: 8px;
+      margin-left: 10px;
+      display: none; /* скрываем по умолчанию */
     }
 
     .controls {
       margin-top: 10px;
       display: flex;
       align-items: center;
-      animation: fadeInUp 0.3s ease;
-    }
-
-    #input-controls {
-      display: none;
     }
   </style>
 </head>
 <body>
   <h2>Сканер лагеря</h2>
-  <div id="reader" playsinline></div>
+  <div id="reader"></div>
 
   <div id="child-card">
     <div class="field"><strong>ФИО:</strong> <span id="fio"></span></div>
     <div class="field"><strong>Отряд:</strong> <span id="team"></span></div>
     <div class="field"><strong>Баланс:</strong> <span id="balance"></span></div>
 
-    <div class="controls" id="action-buttons">
-      <button onclick="prepareUpdate(1)">+</button>
-      <button class="btn-red" onclick="prepareUpdate(-1)">−</button>
-    </div>
-
-    <div class="controls" id="input-controls">
+    <div class="controls">
+      <button id="btn-plus">+</button>
+      <button id="btn-minus" class="btn-red">−</button>
       <input type="number" id="amount" placeholder="Баллы" />
-      <button onclick="confirmUpdate()">=</button>
-      <button onclick="cancelUpdate()" style="background:#666; margin-left:8px;">Отмена</button>
+      <button id="btn-apply" style="display:none;">Применить</button>
+      <button id="btn-cancel" style="display:none; margin-left:8px;">Отмена</button>
     </div>
 
     <button style="margin-top:20px" onclick="startScanner()">Сканировать снова</button>
@@ -140,11 +137,10 @@
   <script>
     const qr = new Html5Qrcode("reader");
     let currentId = "";
-    let currentSign = 1;
-    const sheetUrl = "https://script.google.com/macros/s/AKfycbxLNdtyoLOtF0MXn1yE5det2cr2kYcRY9q2SzzZcW5BmPiTqaQ1FddR2Wy_uNLmXXuw8w/exec"; // замените своим
+    const sheetUrl = "https://script.google.com/macros/s/AKfycbxLNdtyoLOtF0MXn1yE5det2cr2kYcRY9q2SzzZcW5BmPiTqaQ1FddR2Wy_uNLmXXuw8w/exec"; // Заменить на свой URL
 
     function onScanSuccess(decodedText) {
-      qr.stop();
+      qr.stop().catch(() => {}); // остановить сканер
       fetchChildData(decodedText.trim());
     }
 
@@ -152,6 +148,10 @@
       document.getElementById("child-card").style.display = "none";
       hideInputControls();
       Html5Qrcode.getCameras().then(devices => {
+        if(devices.length === 0) {
+          alert("Камеры не найдены");
+          return;
+        }
         const backCam = devices.find(cam =>
           cam.label.toLowerCase().includes("back") ||
           cam.label.toLowerCase().includes("environment")
@@ -162,9 +162,15 @@
           { deviceId: { exact: cameraId } },
           { fps: 10, qrbox: 250, rememberLastUsedCamera: true },
           onScanSuccess
-        ).catch(err => {
+        ).then(() => {
+          console.log("Сканер запущен на камере: " + cameraId);
+        }).catch(err => {
           alert("Не удалось запустить сканер: " + err);
+          console.error(err);
         });
+      }).catch(err => {
+        alert("Ошибка при получении списка камер: " + err);
+        console.error(err);
       });
     }
 
@@ -189,38 +195,54 @@
         });
     }
 
-    function prepareUpdate(sign) {
-      currentSign = sign;
-      document.getElementById("amount").value = "";
-      document.getElementById("action-buttons").style.display = "none";
-      document.getElementById("input-controls").style.display = "flex";
-      document.getElementById("amount").focus();
+    // Показываем поле ввода и кнопки применить/отмена
+    function showInputControls(sign) {
+      const input = document.getElementById("amount");
+      const applyBtn = document.getElementById("btn-apply");
+      const cancelBtn = document.getElementById("btn-cancel");
+      input.style.display = "inline-block";
+      input.value = "";
+      input.focus();
+      applyBtn.style.display = "inline-block";
+      cancelBtn.style.display = "inline-block";
+
+      applyBtn.onclick = () => {
+        const amount = parseInt(input.value);
+        if (isNaN(amount) || amount <= 0) {
+          alert("Введите корректное число баллов");
+          input.focus();
+          return;
+        }
+        updateBalance(amount * sign);
+        hideInputControls();
+      };
+
+      cancelBtn.onclick = () => {
+        hideInputControls();
+      };
     }
 
-    function confirmUpdate() {
-      const amount = parseInt(document.getElementById("amount").value);
-      if (isNaN(amount) || amount <= 0) {
-        return alert("Введите корректное положительное число");
-      }
-      const delta = amount * currentSign;
+    function hideInputControls() {
+      document.getElementById("amount").style.display = "none";
+      document.getElementById("btn-apply").style.display = "none";
+      document.getElementById("btn-cancel").style.display = "none";
+    }
 
+    function updateBalance(delta) {
       fetch(`${sheetUrl}?id=${currentId}&action=update&delta=${delta}`)
         .then(res => res.text())
         .then(msg => {
-          const current = parseInt(document.getElementById("balance").textContent);
-          document.getElementById("balance").textContent = current + delta;
-          cancelUpdate();
-        })
-        .catch(() => alert("Ошибка обновления баланса"));
+          const balanceEl = document.getElementById("balance");
+          const current = parseInt(balanceEl.textContent);
+          balanceEl.textContent = current + delta;
+          document.getElementById("amount").value = "";
+        });
     }
 
-    function cancelUpdate() {
-      document.getElementById("input-controls").style.display = "none";
-      document.getElementById("action-buttons").style.display = "flex";
-      document.getElementById("amount").value = "";
-    }
+    document.getElementById("btn-plus").addEventListener("click", () => showInputControls(1));
+    document.getElementById("btn-minus").addEventListener("click", () => showInputControls(-1));
 
-    // Автостарт
+    // Запускаем сканер сразу при загрузке
     startScanner();
   </script>
 </body>
