@@ -33,7 +33,7 @@
     #reader {
       width: 100%;
       max-width: 400px;
-      height: 300px; /* важно для отображения камеры */
+      height: 300px;
       margin-bottom: 20px;
       background: #222;
     }
@@ -104,7 +104,7 @@
       border-radius: 6px;
       border: none;
       margin-left: 10px;
-      display: none; /* скрываем по умолчанию */
+      display: none;
     }
 
     .controls {
@@ -116,7 +116,7 @@
 </head>
 <body>
   <h2>Сканер лагеря</h2>
-  <div id="reader"></div>
+  <div id="reader" playsinline></div>
 
   <div id="child-card">
     <div class="field"><strong>ФИО:</strong> <span id="fio"></span></div>
@@ -127,7 +127,7 @@
       <button id="btn-plus">+</button>
       <button id="btn-minus" class="btn-red">−</button>
       <input type="number" id="amount" placeholder="Баллы" />
-      <button id="btn-apply" style="display:none;">Применить</button>
+      <button id="btn-apply" style="display:none;">=</button>
       <button id="btn-cancel" style="display:none; margin-left:8px;">Отмена</button>
     </div>
 
@@ -137,10 +137,10 @@
   <script>
     const qr = new Html5Qrcode("reader");
     let currentId = "";
-    const sheetUrl = "https://script.google.com/macros/s/AKfycbxLNdtyoLOtF0MXn1yE5det2cr2kYcRY9q2SzzZcW5BmPiTqaQ1FddR2Wy_uNLmXXuw8w/exec"; // Заменить на свой URL
+    const sheetUrl = "https://script.google.com/macros/s/AKfycbxLNdtyoLOtF0MXn1yE5det2cr2kYcRY9q2SzzZcW5BmPiTqaQ1FddR2Wy_uNLmXXuw8w/exec"; // Заменить на свой
 
     function onScanSuccess(decodedText) {
-      qr.stop().catch(() => {}); // остановить сканер
+      qr.stop().catch(() => {});
       fetchChildData(decodedText.trim());
     }
 
@@ -148,7 +148,7 @@
       document.getElementById("child-card").style.display = "none";
       hideInputControls();
       Html5Qrcode.getCameras().then(devices => {
-        if(devices.length === 0) {
+        if (devices.length === 0) {
           alert("Камеры не найдены");
           return;
         }
@@ -163,7 +163,7 @@
           { fps: 10, qrbox: 250, rememberLastUsedCamera: true },
           onScanSuccess
         ).then(() => {
-          console.log("Сканер запущен на камере: " + cameraId);
+          console.log("Сканер запущен");
         }).catch(err => {
           alert("Не удалось запустить сканер: " + err);
           console.error(err);
@@ -185,7 +185,7 @@
 
           const card = document.getElementById("child-card");
           card.style.display = "none";
-          void card.offsetWidth; // сброс анимации
+          void card.offsetWidth;
           card.style.display = "block";
 
           hideInputControls();
@@ -195,7 +195,6 @@
         });
     }
 
-    // Показываем поле ввода и кнопки применить/отмена
     function showInputControls(sign) {
       const input = document.getElementById("amount");
       const applyBtn = document.getElementById("btn-apply");
@@ -231,18 +230,17 @@
     function updateBalance(delta) {
       fetch(`${sheetUrl}?id=${currentId}&action=update&delta=${delta}`)
         .then(res => res.text())
-        .then(msg => {
+        .then(() => {
           const balanceEl = document.getElementById("balance");
           const current = parseInt(balanceEl.textContent);
           balanceEl.textContent = current + delta;
-          document.getElementById("amount").value = "";
         });
     }
 
     document.getElementById("btn-plus").addEventListener("click", () => showInputControls(1));
     document.getElementById("btn-minus").addEventListener("click", () => showInputControls(-1));
 
-    // Запускаем сканер сразу при загрузке
+    // Автозапуск сканера
     startScanner();
   </script>
 </body>
