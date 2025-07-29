@@ -103,22 +103,29 @@
 
     .controls {
       margin-top: 10px;
+      display: none;
+      animation: fadeInUp 0.3s ease;
     }
   </style>
 </head>
 <body>
   <h2>Сканер лагеря</h2>
-  <div id="reader"></div>
+  <div id="reader" playsinline></div>
 
   <div id="child-card">
     <div class="field"><strong>ФИО:</strong> <span id="fio"></span></div>
     <div class="field"><strong>Отряд:</strong> <span id="team"></span></div>
     <div class="field"><strong>Баланс:</strong> <span id="balance"></span></div>
 
-    <div class="controls">
+    <div class="controls" id="input-controls">
       <input type="number" id="amount" placeholder="Баллы" />
-      <button onclick="updateBalance(1)">+</button>
-      <button class="btn-red" onclick="updateBalance(-1)">−</button>
+      <button onclick="confirmUpdate(1)">Добавить</button>
+      <button class="btn-red" onclick="confirmUpdate(-1)">Вычесть</button>
+    </div>
+
+    <div class="controls">
+      <button onclick="showInput(1)">+</button>
+      <button class="btn-red" onclick="showInput(-1)">−</button>
     </div>
 
     <button style="margin-top:20px" onclick="startScanner()">Сканировать снова</button>
@@ -127,7 +134,8 @@
   <script>
     const qr = new Html5Qrcode("reader");
     let currentId = "";
-    const sheetUrl = "https://script.google.com/macros/s/AKfycbxLNdtyoLOtF0MXn1yE5det2cr2kYcRY9q2SzzZcW5BmPiTqaQ1FddR2Wy_uNLmXXuw8w/exec"; // Заменить
+    let currentSign = 1;
+    const sheetUrl = "https://script.google.com/macros/s/AKfycbxLNdtyoLOtF0MXn1yE5det2cr2kYcRY9q2SzzZcW5BmPiTqaQ1FddR2Wy_uNLmXXuw8w/exec"; // замените своим
 
     function onScanSuccess(decodedText) {
       qr.stop();
@@ -136,6 +144,8 @@
 
     function startScanner() {
       document.getElementById("child-card").style.display = "none";
+      document.getElementById("input-controls").style.display = "none";
+
       Html5Qrcode.getCameras().then(devices => {
         const backCam = devices.find(cam =>
           cam.label.toLowerCase().includes("back") ||
@@ -145,7 +155,7 @@
 
         qr.start(
           { deviceId: { exact: cameraId } },
-          { fps: 10, qrbox: 250 },
+          { fps: 10, qrbox: 250, rememberLastUsedCamera: true },
           onScanSuccess
         ).catch(err => {
           alert("Не удалось запустить сканер: " + err);
@@ -164,7 +174,7 @@
 
           const card = document.getElementById("child-card");
           card.style.display = "none";
-          void card.offsetWidth; // сброс
+          void card.offsetWidth; // сброс анимации
           card.style.display = "block";
         })
         .catch(err => {
@@ -172,22 +182,27 @@
         });
     }
 
-    function updateBalance(sign) {
+    function showInput(sign) {
+      currentSign = sign;
+      document.getElementById("input-controls").style.display = "flex";
+    }
+
+    function confirmUpdate(signOverride = null) {
       const amount = parseInt(document.getElementById("amount").value);
       if (isNaN(amount)) return alert("Введите число");
-      const delta = amount * sign;
+      const delta = amount * (signOverride ?? currentSign);
 
       fetch(`${sheetUrl}?id=${currentId}&action=update&delta=${delta}`)
         .then(res => res.text())
         .then(msg => {
-          // Обновим баланс
           const current = parseInt(document.getElementById("balance").textContent);
           document.getElementById("balance").textContent = current + delta;
           document.getElementById("amount").value = "";
+          document.getElementById("input-controls").style.display = "none";
         });
     }
 
-    // Запуск при загрузке
+    // Автостарт
     startScanner();
   </script>
 </body>
