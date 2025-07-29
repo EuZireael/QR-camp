@@ -1,60 +1,112 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Сканер QR с задней камерой</title>
+  <meta charset="UTF-8">
+  <title>Сканер лагеря</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
     #reader {
-      width: 320px;
+      width: 100%;
+      max-width: 480px;
       margin: auto;
     }
+    #child-card {
+      display: none;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 20px;
+    }
+    #child-card h3 {
+      margin-bottom: 8px;
+    }
+    .btn {
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .btn-red { background: crimson; color: white; }
+    .btn-green { background: green; color: white; }
   </style>
 </head>
 <body>
   <h2>Сканер QR-кодов лагеря</h2>
   <div id="reader"></div>
+  <button class="btn" onclick="startScanner()">Сканировать снова</button>
+
+  <div id="child-card">
+    <h3 id="child-name"></h3>
+    <p><strong>Отряд:</strong> <span id="child-team"></span></p>
+    <p><strong>Баланс:</strong> <span id="child-balance"></span> баллов</p>
+
+    <div>
+      <button class="btn btn-green" onclick="adjustBalance(1)">+ Добавить</button>
+      <button class="btn btn-red" onclick="adjustBalance(-1)">− Вычесть</button>
+    </div>
+  </div>
 
   <script>
+    const scriptUrl = 'https://script.google.com/macros/s/___ТВОЙ_URL___/exec'; // заменишь здесь
+    let currentId = null;
     const qr = new Html5Qrcode("reader");
 
     function startScanner() {
+      document.getElementById("child-card").style.display = "none";
       Html5Qrcode.getCameras().then(devices => {
-        if (devices && devices.length) {
-          // Ищем заднюю камеру по метке (label)
-          let cameraId = devices[0].id; // если не найдём — первая камера
-          for (let device of devices) {
-            const label = device.label.toLowerCase();
-            if (label.includes("back") || label.includes("rear") || label.includes("environment")) {
-              cameraId = device.id;
-              break;
-            }
+        let cameraId = devices[0].id;
+        for (let d of devices) {
+          if (d.label.toLowerCase().includes("back") || d.label.includes("environment")) {
+            cameraId = d.id;
+            break;
           }
-
-          qr.start(
-            cameraId,
-            { fps: 10, qrbox: 250 },
-            (decodedText, decodedResult) => {
-              // Здесь обрабатываем результат сканирования
-              alert(`QR-код: ${decodedText}`);
-              qr.stop();
-            },
-            err => {
-              // Обработка ошибок сканера (необязательно)
-              // console.warn(`Ошибка сканирования: ${err}`);
-            }
-          ).catch(err => {
-            alert("Не удалось запустить камеру: " + err);
-          });
-        } else {
-          alert("Камеры не найдены");
         }
-      }).catch(err => {
-        alert("Ошибка при получении камер: " + err);
+        qr.start(cameraId, { fps: 10, qrbox: 300 }, onScanSuccess).catch(e => {
+          alert("Ошибка запуска камеры: " + e);
+        });
       });
     }
 
-    startScanner();
+    function onScanSuccess(decodedText) {
+      qr.stop();
+      currentId = decodedText.trim();
+      fetch(`${scriptUrl}?action=get&id=${currentId}`)
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("child-name").textContent = data["ФИО"];
+          document.getElementById("child-team").textContent = data["Отряд"];
+          document.getElementById("child-balance").textContent = data["Баланс"];
+          document.getElementById("child-card").style.display = "block";
+        })
+        .catch(err => {
+          alert("Не удалось загрузить данные: " + err);
+        });
+    }
+
+    function adjustBalance(change) {
+      const delta = prompt(`На сколько ${change > 0 ? "добавить" : "вычесть"} баллов?`, "1");
+      const number = parseInt(delta);
+      if (isNaN(number)) return alert("Введите число.");
+      fetch(`${scriptUrl}?action=update&id=${currentId}&delta=${change * number}`)
+        .then(res => res.text())
+        .then(msg => {
+          alert(msg);
+          // Перезапрашиваем данные
+          return fetch(`${scriptUrl}?action=get&id=${currentId}`);
+        })
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("child-balance").textContent = data["Баланс"];
+        });
+    }
+
+    // Автостарт при загрузке
+    window.onload = startScanner;
   </script>
 </body>
 </html>
