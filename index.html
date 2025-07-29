@@ -99,12 +99,18 @@
       padding: 4px;
       border-radius: 6px;
       border: none;
+      margin-right: 8px;
     }
 
     .controls {
       margin-top: 10px;
-      display: none;
+      display: flex;
+      align-items: center;
       animation: fadeInUp 0.3s ease;
+    }
+
+    #input-controls {
+      display: none;
     }
   </style>
 </head>
@@ -117,15 +123,15 @@
     <div class="field"><strong>Отряд:</strong> <span id="team"></span></div>
     <div class="field"><strong>Баланс:</strong> <span id="balance"></span></div>
 
-    <div class="controls" id="input-controls">
-      <input type="number" id="amount" placeholder="Баллы" />
-      <button onclick="confirmUpdate(1)">Добавить</button>
-      <button class="btn-red" onclick="confirmUpdate(-1)">Вычесть</button>
+    <div class="controls" id="action-buttons">
+      <button onclick="prepareUpdate(1)">+</button>
+      <button class="btn-red" onclick="prepareUpdate(-1)">−</button>
     </div>
 
-    <div class="controls">
-      <button onclick="showInput(1)">+</button>
-      <button class="btn-red" onclick="showInput(-1)">−</button>
+    <div class="controls" id="input-controls">
+      <input type="number" id="amount" placeholder="Баллы" />
+      <button onclick="confirmUpdate()">=</button>
+      <button onclick="cancelUpdate()" style="background:#666; margin-left:8px;">Отмена</button>
     </div>
 
     <button style="margin-top:20px" onclick="startScanner()">Сканировать снова</button>
@@ -144,8 +150,7 @@
 
     function startScanner() {
       document.getElementById("child-card").style.display = "none";
-      document.getElementById("input-controls").style.display = "none";
-
+      hideInputControls();
       Html5Qrcode.getCameras().then(devices => {
         const backCam = devices.find(cam =>
           cam.label.toLowerCase().includes("back") ||
@@ -176,30 +181,43 @@
           card.style.display = "none";
           void card.offsetWidth; // сброс анимации
           card.style.display = "block";
+
+          hideInputControls();
         })
         .catch(err => {
           alert("Ошибка загрузки данных: " + err);
         });
     }
 
-    function showInput(sign) {
+    function prepareUpdate(sign) {
       currentSign = sign;
+      document.getElementById("amount").value = "";
+      document.getElementById("action-buttons").style.display = "none";
       document.getElementById("input-controls").style.display = "flex";
+      document.getElementById("amount").focus();
     }
 
-    function confirmUpdate(signOverride = null) {
+    function confirmUpdate() {
       const amount = parseInt(document.getElementById("amount").value);
-      if (isNaN(amount)) return alert("Введите число");
-      const delta = amount * (signOverride ?? currentSign);
+      if (isNaN(amount) || amount <= 0) {
+        return alert("Введите корректное положительное число");
+      }
+      const delta = amount * currentSign;
 
       fetch(`${sheetUrl}?id=${currentId}&action=update&delta=${delta}`)
         .then(res => res.text())
         .then(msg => {
           const current = parseInt(document.getElementById("balance").textContent);
           document.getElementById("balance").textContent = current + delta;
-          document.getElementById("amount").value = "";
-          document.getElementById("input-controls").style.display = "none";
-        });
+          cancelUpdate();
+        })
+        .catch(() => alert("Ошибка обновления баланса"));
+    }
+
+    function cancelUpdate() {
+      document.getElementById("input-controls").style.display = "none";
+      document.getElementById("action-buttons").style.display = "flex";
+      document.getElementById("amount").value = "";
     }
 
     // Автостарт
