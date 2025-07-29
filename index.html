@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Сканер QR с задней камерой</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    #reader {
+      width: 320px;
+      margin: auto;
+    }
+  </style>
+</head>
+<body>
+  <h2>Сканер QR-кодов лагеря</h2>
+  <div id="reader"></div>
+
+  <script>
+    const qr = new Html5Qrcode("reader");
+
+    function startScanner() {
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length) {
+          // Ищем заднюю камеру по метке (label)
+          let cameraId = devices[0].id; // если не найдём — первая камера
+          for (let device of devices) {
+            const label = device.label.toLowerCase();
+            if (label.includes("back") || label.includes("rear") || label.includes("environment")) {
+              cameraId = device.id;
+              break;
+            }
+          }
+
+          qr.start(
+            cameraId,
+            { fps: 10, qrbox: 250 },
+            (decodedText, decodedResult) => {
+              // Здесь обрабатываем результат сканирования
+              alert(`QR-код: ${decodedText}`);
+              qr.stop();
+            },
+            err => {
+              // Обработка ошибок сканера (необязательно)
+              // console.warn(`Ошибка сканирования: ${err}`);
+            }
+          ).catch(err => {
+            alert("Не удалось запустить камеру: " + err);
+          });
+        } else {
+          alert("Камеры не найдены");
+        }
+      }).catch(err => {
+        alert("Ошибка при получении камер: " + err);
+      });
+    }
+
+    startScanner();
+  </script>
+</body>
+</html>
