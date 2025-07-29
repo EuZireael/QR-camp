@@ -31,6 +31,22 @@
       margin-bottom: 16px;
     }
 
+    #scan-again {
+      margin-bottom: 10px;
+      padding: 8px 16px;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      background: #333;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    #scan-again:active {
+      transform: scale(0.95);
+    }
+
     #reader {
       width: 100%;
       max-width: 360px;
@@ -143,6 +159,8 @@
 </head>
 <body>
   <h2>Сканер лагеря</h2>
+  <button id="scan-again" onclick="startScanner()">Сканировать снова</button>
+
   <div id="reader" playsinline>
     <button id="switch-camera" title="Переключить камеру">↻</button>
   </div>
@@ -156,11 +174,8 @@
       <button id="btn-plus">+</button>
       <button id="btn-minus" class="btn-red">−</button>
       <input type="number" id="amount" placeholder="Баллы" />
-      <button id="btn-apply" style="display:none;">=</button>
-      <button id="btn-cancel" style="display:none;">×</button>
+      <button id="btn-apply" style="display:none;">Ввод</button>
     </div>
-
-    <button style="margin-top: 20px;" onclick="startScanner()">Сканировать снова</button>
   </div>
 
   <script>
@@ -168,7 +183,7 @@
     let currentId = "";
     let currentCameraId = null;
     let cameras = [];
-    const sheetUrl = "https://script.google.com/macros/s/AKfycbxLNdtyoLOtF0MXn1yE5det2cr2kYcRY9q2SzzZcW5BmPiTqaQ1FddR2Wy_uNLmXXuw8w/exec"; // Замените на свой
+    const sheetUrl = "https://script.google.com/macros/s/AKfycbxLNdtyoLOtF0MXn1yE5det2cr2kYcRY9q2SzzZcW5BmPiTqaQ1FddR2Wy_uNLmXXuw8w/exec";
 
     function onScanSuccess(decodedText) {
       qr.stop().catch(() => {});
@@ -180,11 +195,11 @@
         alert("Доступна только одна камера");
         return;
       }
-      
+
       const currentIndex = cameras.findIndex(cam => cam.id === currentCameraId);
       const nextIndex = (currentIndex + 1) % cameras.length;
       const nextCamera = cameras[nextIndex];
-      
+
       try {
         await qr.stop();
         await startCamera(nextCamera.id);
@@ -203,12 +218,6 @@
           onScanSuccess
         );
         currentCameraId = cameraId;
-        
-        // Обновляем иконку кнопки в зависимости от типа камеры
-        const isBackCamera = cameraId.toLowerCase().includes("back") || 
-                            cameraId.toLowerCase().includes("rear") ||
-                            cameraId.toLowerCase().includes("environment");
-        document.getElementById("switch-camera").textContent = isBackCamera ? "↻" : "↻";
       } catch (err) {
         console.error("Ошибка запуска камеры:", err);
         throw err;
@@ -218,27 +227,24 @@
     function startScanner() {
       document.getElementById("child-card").style.display = "none";
       hideInputControls();
-      
+
       Html5Qrcode.getCameras().then(availableCameras => {
         cameras = availableCameras;
         if (cameras.length === 0) {
           alert("Камеры не найдены");
           return;
         }
-        
-        // Пробуем найти заднюю камеру
-        const backCam = cameras.find(cam => 
+
+        const backCam = cameras.find(cam =>
           cam.label.toLowerCase().includes("back") ||
           cam.label.toLowerCase().includes("rear") ||
           cam.label.toLowerCase().includes("environment")
         );
-        
-        // Если не нашли, используем первую камеру в списке
+
         const cameraToUse = backCam || cameras[0];
         startCamera(cameraToUse.id);
       }).catch(err => {
         console.error("Не удалось получить список камер:", err);
-        // Пробуем запустить с environment mode
         qr.start(
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: 250, height: 250 } },
@@ -275,10 +281,9 @@
     function showInputControls(sign) {
       const input = document.getElementById("amount");
       const apply = document.getElementById("btn-apply");
-      const cancel = document.getElementById("btn-cancel");
+
       input.style.display = "inline-block";
       apply.style.display = "inline-block";
-      cancel.style.display = "inline-block";
       input.value = "";
       input.focus();
 
@@ -291,14 +296,11 @@
         updateBalance(value * sign);
         hideInputControls();
       };
-
-      cancel.onclick = hideInputControls;
     }
 
     function hideInputControls() {
       document.getElementById("amount").style.display = "none";
       document.getElementById("btn-apply").style.display = "none";
-      document.getElementById("btn-cancel").style.display = "none";
     }
 
     function updateBalance(delta) {
@@ -314,7 +316,7 @@
     document.getElementById("btn-minus").addEventListener("click", () => showInputControls(-1));
     document.getElementById("switch-camera").addEventListener("click", switchCamera);
 
-    // Запуск сканера при загрузке
+    // Автозапуск при загрузке
     startScanner();
   </script>
 </body>
