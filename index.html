@@ -39,6 +39,25 @@
       overflow: hidden;
       box-shadow: var(--shadow);
       border: 2px solid var(--accent);
+      position: relative;
+    }
+
+    #switch-camera {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.5);
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     #child-card {
@@ -124,7 +143,9 @@
 </head>
 <body>
   <h2>Сканер лагеря</h2>
-  <div id="reader" playsinline></div>
+  <div id="reader" playsinline>
+    <button id="switch-camera" title="Переключить камеру">↻</button>
+  </div>
 
   <div id="child-card">
     <div class="field"><strong>ФИО:</strong> <span id="fio"></span></div>
@@ -145,6 +166,8 @@
   <script>
     const qr = new Html5Qrcode("reader");
     let currentId = "";
+    let currentCameraId = null;
+    let cameras = [];
     const sheetUrl = "https://script.google.com/macros/s/AKfycbxLNdtyoLOtF0MXn1yE5det2cr2kYcRY9q2SzzZcW5BmPiTqaQ1FddR2Wy_uNLmXXuw8w/exec"; // Замените на свой
 
     function onScanSuccess(decodedText) {
@@ -152,91 +175,78 @@
       fetchChildData(decodedText.trim());
     }
 
+    async function switchCamera() {
+      if (cameras.length < 2) {
+        alert("Доступна только одна камера");
+        return;
+      }
+      
+      const currentIndex = cameras.findIndex(cam => cam.id === currentCameraId);
+      const nextIndex = (currentIndex + 1) % cameras.length;
+      const nextCamera = cameras[nextIndex];
+      
+      try {
+        await qr.stop();
+        await startCamera(nextCamera.id);
+      } catch (err) {
+        console.error("Ошибка переключения камеры:", err);
+        alert("Не удалось переключить камеру");
+        startCamera(currentCameraId);
+      }
+    }
+
+    async function startCamera(cameraId) {
+      try {
+        await qr.start(
+          { deviceId: { exact: cameraId } },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          onScanSuccess
+        );
+        currentCameraId = cameraId;
+        
+        // Обновляем иконку кнопки в зависимости от типа камеры
+        const isBackCamera = cameraId.toLowerCase().includes("back") || 
+                            cameraId.toLowerCase().includes("rear") ||
+                            cameraId.toLowerCase().includes("environment");
+        document.getElementById("switch-camera").textContent = isBackCamera ? "↻" : "↻";
+      } catch (err) {
+        console.error("Ошибка запуска камеры:", err);
+        throw err;
+      }
+    }
+
     function startScanner() {
       document.getElementById("child-card").style.display = "none";
       hideInputControls();
-      Html5Qrcode.getCameras().then(devices => {
-        if (devices.length === 0) {
+      
+      Html5Qrcode.getCameras().then(availableCameras => {
+        cameras = availableCameras;
+        if (cameras.length === 0) {
           alert("Камеры не найдены");
           return;
         }
         
-        // Улучшенный выбор камеры для iOS
-        let cameraId = null;
-        
-        // 1. Попробуем найти заднюю камеру по меткам
-        const backCam = devices.find(cam => 
+        // Пробуем найти заднюю камеру
+        const backCam = cameras.find(cam => 
           cam.label.toLowerCase().includes("back") ||
           cam.label.toLowerCase().includes("rear") ||
-          cam.label.toLowerCase().includes("environment") ||
-          cam.label.toLowerCase().includes("world") ||
-          cam.label.toLowerCase().includes("0")
+          cam.label.toLowerCase().includes("environment")
         );
         
-        // 2. Если не нашли, попробуем найти камеру с наибольшим разрешением (обычно это задняя)
-        if (!backCam) {
-          // Сортируем камеры по разрешению (примерно)
-          devices.sort((a, b) => {
-            const aRes = a.label.match(/\d+x\d+/);
-            const bRes = b.label.match(/\d+x\d+/);
-            if (aRes && bRes) {
-              return parseInt(bRes[0].split('x')[0]) - parseInt(aRes[0].split('x')[0]);
-            }
-            return 0;
-          });
-          cameraId = devices[0].id;
-        } else {
-          cameraId = backCam.id;
-        }
-        
-        // 3. Если на iOS, попробуем использовать второй вариант запуска
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        
-        if (isIOS) {
-          // Альтернативный метод для iOS
-          qr.start(
-            cameraId,
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            onScanSuccess,
-            () => {} // Обработчик ошибок
-          ).catch(err => {
-            // Если не получилось, пробуем без указания камеры
-            qr.start(
-              { facingMode: "environment" },
-              { fps: 10, qrbox: { width: 250, height: 250 } },
-              onScanSuccess,
-              () => {
-                alert("Ошибка запуска камеры: " + err);
-              }
-            ).catch(() => {
-              // Последняя попытка - любая камера
-              qr.start(
-                devices[0].id,
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                onScanSuccess,
-                (err) => alert("Не удалось запустить камеру: " + err)
-              );
-            });
-          });
-        } else {
-          // Для других устройств используем стандартный подход
-          qr.start(
-            { deviceId: { exact: cameraId } },
-            { fps: 10, qrbox: { width: 250, height: 250 }, rememberLastUsedCamera: true },
-            onScanSuccess
-          ).catch(err => {
-            alert("Ошибка запуска камеры: " + err);
-          });
-        }
+        // Если не нашли, используем первую камеру в списке
+        const cameraToUse = backCam || cameras[0];
+        startCamera(cameraToUse.id);
       }).catch(err => {
-        alert("Не удалось получить список камер: " + err);
-        // Попробуем запустить с environment mode
+        console.error("Не удалось получить список камер:", err);
+        // Пробуем запустить с environment mode
         qr.start(
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: 250, height: 250 } },
           onScanSuccess,
-          (err) => alert("Ошибка запуска камеры: " + err)
+          (err) => {
+            console.error("Ошибка запуска камеры:", err);
+            alert("Не удалось запустить камеру");
+          }
         );
       });
     }
@@ -302,6 +312,7 @@
 
     document.getElementById("btn-plus").addEventListener("click", () => showInputControls(1));
     document.getElementById("btn-minus").addEventListener("click", () => showInputControls(-1));
+    document.getElementById("switch-camera").addEventListener("click", switchCamera);
 
     // Запуск сканера при загрузке
     startScanner();
