@@ -48,13 +48,18 @@
     }
 
     #reader {
-      width: 267px;
+      width: 270px;
       height: 180px;
       border-radius: 16px;
       overflow: hidden;
       box-shadow: var(--shadow);
       border: 2px solid var(--accent);
       position: relative;
+    }
+
+    /* Убираем внутреннюю рамку сканера */
+    #reader__scan_region > div:nth-child(1) {
+      display: none !important;
     }
 
     #child-card {
