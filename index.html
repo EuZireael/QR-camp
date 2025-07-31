@@ -179,7 +179,7 @@
       try {
         await qr.start(
           { facingMode: "environment" },
-          { fps: 7, qrbox: { width: 180, height: 180 } },
+          { fps: 5, qrbox: { width: 150, height: 150 } },
           onScanSuccess,
           (err) => {
             //console.log("Сканирование:", err);
