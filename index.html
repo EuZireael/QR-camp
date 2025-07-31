@@ -145,7 +145,7 @@
 </head>
 <body>
   <h2>Сканер лагеря</h2>
-  <button id="scan-again" onclick="startScanner()">Сканировать снова</button>
+  <button id="scan-again">Сканировать снова</button>
 
   <div id="reader" playsinline></div>
 
@@ -164,27 +164,41 @@
 
   <script>
     const qr = new Html5Qrcode("reader");
+    let isScanning = false;
     let currentId = "";
     const sheetUrl = "https://script.google.com/macros/s/AKfycbxLNdtyoLOtF0MXn1yE5det2cr2kYcRY9q2SzzZcW5BmPiTqaQ1FddR2Wy_uNLmXXuw8w/exec";
 
     function onScanSuccess(decodedText) {
-      qr.stop().catch(() => {});
+      qr.stop().then(() => { isScanning = false }).catch(() => {});
       fetchChildData(decodedText.trim());
     }
 
     async function startScanner() {
+      if (isScanning) {
+        await qr.stop();
+        isScanning = false;
+      }
+
+      // Очистка UI
       document.getElementById("child-card").style.display = "none";
+      document.getElementById("fio").textContent = "";
+      document.getElementById("team").textContent = "";
+      document.getElementById("balance").textContent = "";
       hideInputControls();
+
+      const viewportSize = Math.min(window.innerWidth, window.innerHeight);
+      const boxSize = Math.floor(viewportSize * 0.6); // 60% ширины/высоты
 
       try {
         await qr.start(
           { facingMode: "environment" },
-          { fps: 5, qrbox: { width: 150, height: 150 } },
+          { fps: 5, qrbox: { width: boxSize, height: boxSize } },
           onScanSuccess,
           (err) => {
-            //console.log("Сканирование:", err);
+            // console.warn(err);
           }
         );
+        isScanning = true;
       } catch (err) {
         alert("Не удалось открыть камеру. Разрешите доступ и попробуйте снова.");
         console.error(err);
@@ -238,7 +252,6 @@
     }
 
     function updateBalance(delta) {
-      // Оптимизация: сразу обновляем баланс на клиенте, не дожидаясь повторного запроса
       const balanceElem = document.getElementById("balance");
       let currentBalance = parseInt(balanceElem.textContent) || 0;
       balanceElem.textContent = currentBalance + delta;
@@ -247,19 +260,15 @@
         .then(res => res.text())
         .catch(err => {
           alert("Ошибка обновления баланса: " + err);
-          // Откатим баланс при ошибке
           balanceElem.textContent = currentBalance;
         });
     }
 
     document.getElementById("btn-plus").addEventListener("click", () => showInputControls(1));
     document.getElementById("btn-minus").addEventListener("click", () => showInputControls(-1));
-
-    // Кнопка ввода уже внутри блока controls, обработчик для неё не нужно добавлять, он назначается в showInputControls
-
     document.getElementById("scan-again").addEventListener("click", startScanner);
 
-    // Автоматический старт камеры при загрузке
+    // Старт камеры при загрузке
     startScanner();
   </script>
 </body>
