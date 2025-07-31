@@ -186,7 +186,7 @@
       document.getElementById("balance").textContent = "";
       hideInputControls();
 
-      const viewportSize = Math.min(window.innerWidth, window.innerHeight);
+      const viewportSize = Math.min(window.innerWidth, window.innerHeight - 33%);
       const boxSize = Math.floor(viewportSize * 0.6); // 60% ширины/высоты
 
       try {
