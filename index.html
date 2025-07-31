@@ -197,12 +197,6 @@
         );
         isScanning = true;
 
-        // Удаление белой рамки от сканера
-        setTimeout(() => {
-          const overlay = document.querySelector("#reader__scan_region > div:nth-child(1)");
-          if (overlay) overlay.style.display = "none";
-        }, 500);
-
       } catch (err) {
         alert("Не удалось открыть камеру. Разрешите доступ и попробуйте снова.");
         console.error(err);
