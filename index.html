@@ -58,24 +58,6 @@
       position: relative;
     }
 
-    #switch-camera {
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
-      background: rgba(0, 0, 0, 0.5);
-      border: none;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      color: white;
-      font-size: 20px;
-      cursor: pointer;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
     #child-card {
       background: var(--card);
       border-radius: 20px;
@@ -116,7 +98,6 @@
       color: white;
       cursor: pointer;
       transition: all 0.2s ease;
-      transform: scale(1);
     }
 
     button:active {
@@ -161,9 +142,7 @@
   <h2>Сканер лагеря</h2>
   <button id="scan-again" onclick="startScanner()">Сканировать снова</button>
 
-  <div id="reader" playsinline>
-    <button id="switch-camera" title="Переключить камеру">↻</button>
-  </div>
+  <div id="reader" playsinline></div>
 
   <div id="child-card">
     <div class="field"><strong>ФИО:</strong> <span id="fio"></span></div>
@@ -181,8 +160,6 @@
   <script>
     const qr = new Html5Qrcode("reader");
     let currentId = "";
-    let currentCameraId = null;
-    let cameras = [];
     const sheetUrl = "https://script.google.com/macros/s/AKfycbxLNdtyoLOtF0MXn1yE5det2cr2kYcRY9q2SzzZcW5BmPiTqaQ1FddR2Wy_uNLmXXuw8w/exec";
 
     function onScanSuccess(decodedText) {
@@ -190,71 +167,19 @@
       fetchChildData(decodedText.trim());
     }
 
-    async function switchCamera() {
-      if (cameras.length < 2) {
-        alert("Доступна только одна камера");
-        return;
-      }
-
-      const currentIndex = cameras.findIndex(cam => cam.id === currentCameraId);
-      const nextIndex = (currentIndex + 1) % cameras.length;
-      const nextCamera = cameras[nextIndex];
-
-      try {
-        await qr.stop();
-        await startCamera(nextCamera.id);
-      } catch (err) {
-        console.error("Ошибка переключения камеры:", err);
-        alert("Не удалось переключить камеру");
-        startCamera(currentCameraId);
-      }
-    }
-
-    async function startCamera(cameraId) {
-      try {
-        await qr.start(
-          { deviceId: { exact: cameraId } },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          onScanSuccess
-        );
-        currentCameraId = cameraId;
-      } catch (err) {
-        console.error("Ошибка запуска камеры:", err);
-        throw err;
-      }
-    }
-
     function startScanner() {
       document.getElementById("child-card").style.display = "none";
       hideInputControls();
 
-      Html5Qrcode.getCameras().then(availableCameras => {
-        cameras = availableCameras;
-        if (cameras.length === 0) {
-          alert("Камеры не найдены");
-          return;
+      qr.start(
+        { facingMode: "environment" }, // Всегда использовать заднюю камеру
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        onScanSuccess,
+        (err) => {
+          console.error("Ошибка сканера:", err);
+          alert("Не удалось открыть камеру. Разрешите доступ и попробуйте снова.");
         }
-
-        const backCam = cameras.find(cam =>
-          cam.label.toLowerCase().includes("back") ||
-          cam.label.toLowerCase().includes("rear") ||
-          cam.label.toLowerCase().includes("environment")
-        );
-
-        const cameraToUse = backCam || cameras[0];
-        startCamera(cameraToUse.id);
-      }).catch(err => {
-        console.error("Не удалось получить список камер:", err);
-        qr.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          onScanSuccess,
-          (err) => {
-            console.error("Ошибка запуска камеры:", err);
-            alert("Не удалось запустить камеру");
-          }
-        );
-      });
+      );
     }
 
     function fetchChildData(id) {
@@ -314,7 +239,6 @@
 
     document.getElementById("btn-plus").addEventListener("click", () => showInputControls(1));
     document.getElementById("btn-minus").addEventListener("click", () => showInputControls(-1));
-    document.getElementById("switch-camera").addEventListener("click", switchCamera);
 
     // Автозапуск при загрузке
     startScanner();
