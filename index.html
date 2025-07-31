@@ -6,17 +6,174 @@
   <title>Лагерь: Сканер</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    /* твои стили без изменений */
+    :root {
+      --bg: #121212;
+      --text: #ffffff;
+      --card: #1e1e1e;
+      --accent: #00c853;
+      --danger: #ff5252;
+      --shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    h2 {
+      margin-bottom: 16px;
+    }
+
+    #scan-again {
+      margin-bottom: 10px;
+      padding: 8px 16px;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      background: #333;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    #scan-again:active {
+      transform: scale(0.95);
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 360px;
+      aspect-ratio: 1/1;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      border: 2px solid var(--accent);
+      position: relative;
+    }
+
+    #switch-camera {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.5);
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #child-card {
+      background: var(--card);
+      border-radius: 20px;
+      padding: 24px;
+      margin-top: 30px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: var(--shadow);
+      display: none;
+      animation: fadeInUp 0.4s ease;
+    }
+
+    .field {
+      margin: 14px 0;
+      font-size: 17px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .field strong {
+      opacity: 0.7;
+    }
+
+    .controls {
+      margin-top: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button {
+      margin: 6px;
+      padding: 10px 18px;
+      font-size: 18px;
+      border: none;
+      border-radius: 10px;
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      transform: scale(1);
+    }
+
+    button:active {
+      transform: scale(0.95);
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    .btn-red {
+      background: var(--danger);
+    }
+
+    .btn-red:active {
+      box-shadow: 0 0 10px var(--danger);
+    }
+
+    input[type="number"] {
+      width: 100px;
+      font-size: 16px;
+      padding: 6px;
+      border-radius: 10px;
+      border: none;
+      margin: 6px;
+      display: none;
+      background: #2a2a2a;
+      color: var(--text);
+      text-align: center;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
   </style>
 </head>
 <body>
   <h2>Сканер лагеря</h2>
-  <button id="scan-again">Сканировать снова</button>
+  <button id="scan-again" onclick="startScanner()">Сканировать снова</button>
 
-  <div id="reader" playsinline style="width:360px; height:360px;"></div>
+  <div id="reader" playsinline></div>
 
-  <div id="child-card" style="display:none;">
-    <!-- тут твои поля ФИО, Отряд, Баланс -->
+  <div id="child-card">
+    <div class="field"><strong>ФИО:</strong> <span id="fio"></span></div>
+    <div class="field"><strong>Отряд:</strong> <span id="team"></span></div>
+    <div class="field"><strong>Баланс:</strong> <span id="balance"></span></div>
+
+    <div class="controls">
+      <button id="btn-plus">+</button>
+      <button id="btn-minus" class="btn-red">−</button>
+      <input type="number" id="amount" placeholder="Баллы" />
+      <button id="btn-apply" style="display:none;">Ввод</button>
+    </div>
   </div>
 
   <script>
@@ -39,7 +196,6 @@
           { fps: 7, qrbox: { width: 180, height: 180 } },
           onScanSuccess,
           (err) => {
-            // ошибки сканирования можно просто логировать
             //console.log("Сканирование:", err);
           }
         );
