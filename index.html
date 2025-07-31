@@ -58,24 +58,6 @@
       position: relative;
     }
 
-    #switch-camera {
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
-      background: rgba(0, 0, 0, 0.5);
-      border: none;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      color: white;
-      font-size: 20px;
-      cursor: pointer;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
     #child-card {
       background: var(--card);
       border-radius: 20px;
@@ -102,12 +84,12 @@
     .controls {
       margin-top: 16px;
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       align-items: center;
+      gap: 8px;
     }
 
     button {
-      margin: 6px;
       padding: 10px 18px;
       font-size: 18px;
       border: none;
@@ -132,17 +114,21 @@
       box-shadow: 0 0 10px var(--danger);
     }
 
-    input[type="number"] {
+    #amount {
       width: 100px;
       font-size: 16px;
       padding: 6px;
       border-radius: 10px;
       border: none;
-      margin: 6px;
-      display: none;
       background: #2a2a2a;
       color: var(--text);
       text-align: center;
+      display: none;
+    }
+
+    #btn-apply {
+      display: none;
+      white-space: nowrap;
     }
 
     @keyframes fadeInUp {
@@ -172,7 +158,7 @@
       <button id="btn-plus">+</button>
       <button id="btn-minus" class="btn-red">−</button>
       <input type="number" id="amount" placeholder="Баллы" />
-      <button id="btn-apply" style="display:none;">Ввод</button>
+      <button id="btn-apply">Ввод</button>
     </div>
   </div>
 
@@ -252,16 +238,25 @@
     }
 
     function updateBalance(delta) {
+      // Оптимизация: сразу обновляем баланс на клиенте, не дожидаясь повторного запроса
+      const balanceElem = document.getElementById("balance");
+      let currentBalance = parseInt(balanceElem.textContent) || 0;
+      balanceElem.textContent = currentBalance + delta;
+
       fetch(`${sheetUrl}?id=${currentId}&action=update&delta=${delta}`)
         .then(res => res.text())
-        .then(() => {
-          const balance = document.getElementById("balance");
-          balance.textContent = parseInt(balance.textContent) + delta;
+        .catch(err => {
+          alert("Ошибка обновления баланса: " + err);
+          // Откатим баланс при ошибке
+          balanceElem.textContent = currentBalance;
         });
     }
 
     document.getElementById("btn-plus").addEventListener("click", () => showInputControls(1));
     document.getElementById("btn-minus").addEventListener("click", () => showInputControls(-1));
+
+    // Кнопка ввода уже внутри блока controls, обработчик для неё не нужно добавлять, он назначается в showInputControls
+
     document.getElementById("scan-again").addEventListener("click", startScanner);
 
     // Автоматический старт камеры при загрузке
