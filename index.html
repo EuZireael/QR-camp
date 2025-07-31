@@ -49,17 +49,12 @@
 
     #reader {
       width: 270px;
-      height: 180px;
+      height: 270px;
       border-radius: 16px;
       overflow: hidden;
       box-shadow: var(--shadow);
       border: 2px solid var(--accent);
       position: relative;
-    }
-
-    /* Убираем внутреннюю рамку сканера */
-    #reader__scan_region > div:nth-child(1) {
-      display: none !important;
     }
 
     #child-card {
@@ -183,7 +178,6 @@
         isScanning = false;
       }
 
-      // Очистка UI
       document.getElementById("child-card").style.display = "none";
       document.getElementById("fio").textContent = "";
       document.getElementById("team").textContent = "";
@@ -199,11 +193,16 @@
             aspectRatio: 1.0
           },
           onScanSuccess,
-          (err) => {
-            // console.warn(err);
-          }
+          (err) => {}
         );
         isScanning = true;
+
+        // Удаление белой рамки от сканера
+        setTimeout(() => {
+          const overlay = document.querySelector("#reader__scan_region > div:nth-child(1)");
+          if (overlay) overlay.style.display = "none";
+        }, 500);
+
       } catch (err) {
         alert("Не удалось открыть камеру. Разрешите доступ и попробуйте снова.");
         console.error(err);
